@@ -36,12 +36,13 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-#if SANITIZER_FREEBSD
+#  if SANITIZER_FREEBSD || SANITIZER_QNX
 // The MAP_NORESERVE define has been removed in FreeBSD 11.x, and even before
 // that, it was never implemented.  So just define it to zero.
-#undef MAP_NORESERVE
-#define MAP_NORESERVE 0
-#endif
+// MAP_NORESERVE support has been removed in QNX 8.0.
+#    undef MAP_NORESERVE
+#    define MAP_NORESERVE 0
+#  endif
 
 typedef void (*sa_sigaction_t)(int, siginfo_t *, void *);
 

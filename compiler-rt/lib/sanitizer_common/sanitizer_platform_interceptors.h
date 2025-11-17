@@ -153,6 +153,12 @@ SANITIZER_WEAK_IMPORT void *aligned_alloc(__sanitizer::usize __alignment,
 #define SI_SOLARIS32 0
 #endif
 
+#if SANITIZER_QNX
+#  define SI_QNX 1
+#else
+#  define SI_QNX 0
+#endif
+
 #if SANITIZER_POSIX && !SANITIZER_APPLE
 #define SI_POSIX_NOT_MAC 1
 #else

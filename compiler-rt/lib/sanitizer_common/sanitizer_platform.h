@@ -16,7 +16,7 @@
     !defined(__APPLE__) && !defined(_WIN32) && !defined(__Fuchsia__) &&     \
     !(defined(__sun__) && defined(__svr4__)) && !defined(__HAIKU__) &&      \
     !defined(__wasi__) && !defined(__NVPTX__) && !defined(__AMDGPU__) &&    \
-    !defined(__SPIRV__) && !defined(_AIX)
+    !defined(__SPIRV__) && !defined(_AIX) && !defined(__QNXNTO__)
 #  error "This operating system is not supported"
 #endif
 
@@ -167,6 +167,12 @@
 #  define SANITIZER_FUCHSIA 0
 #endif
 
+#if defined(__QNXNTO__)
+#  define SANITIZER_QNX 1
+#else
+#  define SANITIZER_QNX 0
+#endif
+
 // Assume linux that is not glibc or android is musl libc.
 #if SANITIZER_LINUX && !SANITIZER_GLIBC && !SANITIZER_ANDROID
 #  define SANITIZER_MUSL 1
@@ -174,9 +180,10 @@
 #  define SANITIZER_MUSL 0
 #endif
 
-#define SANITIZER_POSIX                                       \
-  (SANITIZER_FREEBSD || SANITIZER_LINUX || SANITIZER_APPLE || \
-   SANITIZER_NETBSD || SANITIZER_SOLARIS || SANITIZER_HAIKU || SANITIZER_AIX)
+#define SANITIZER_POSIX                                        \
+  (SANITIZER_FREEBSD || SANITIZER_LINUX || SANITIZER_APPLE ||  \
+   SANITIZER_NETBSD || SANITIZER_SOLARIS || SANITIZER_HAIKU || \
+   SANITIZER_AIX || SANITIZER_QNX)
 
 #if __LP64__ || defined(_WIN64)
 #  define SANITIZER_WORDSIZE 64
@@ -488,6 +495,8 @@
 #if SANITIZER_FREEBSD || SANITIZER_APPLE || SANITIZER_NETBSD || \
     SANITIZER_SOLARIS || SANITIZER_HAIKU
 #  define SANITIZER_MADVISE_DONTNEED MADV_FREE
+#elif SANITIZER_QNX
+#  define SANITIZER_MADVISE_DONTNEED POSIX_MADV_DONTNEED
 #else
 #  define SANITIZER_MADVISE_DONTNEED MADV_DONTNEED
 #endif

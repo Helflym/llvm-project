@@ -24,7 +24,8 @@
 // Must go after undef _FILE_OFFSET_BITS.
 #include "sanitizer_platform.h"
 
-#if SANITIZER_LINUX || SANITIZER_APPLE || SANITIZER_HAIKU || SANITIZER_AIX
+#if SANITIZER_LINUX || SANITIZER_APPLE || SANITIZER_HAIKU || SANITIZER_AIX || \
+    SANITIZER_QNX
 // Must go after undef _FILE_OFFSET_BITS.
 #include "sanitizer_glibc_version.h"
 
@@ -65,7 +66,9 @@
 #      include <sys/mount.h>
 #    endif
 #    include <sys/timeb.h>
-#    include <utmpx.h>
+#    if !SANITIZER_QNX
+#      include <utmpx.h>
+#    endif
 #endif
 
 #if SANITIZER_LINUX
@@ -119,7 +122,10 @@ typedef struct user_fpregs elf_fpregset_t;
 #    else
 #      include <netinet/in.h>
 #    endif
-#    if !SANITIZER_HAIKU
+#    if SANITIZER_QNX
+#      include <ucontext.h>
+#      include <wordexp.h>
+#    elif !SANITIZER_HAIKU
 #      include <sys/ucontext.h>
 #      include <wordexp.h>
 #    endif
@@ -198,6 +204,11 @@ typedef struct user_fpregs elf_fpregset_t;
 #    endif
 #  endif
 
+#  if SANITIZER_QNX
+#    include <ioctl.h>
+#    include <net/ethernet.h>
+#  endif
+
 // Include these after system headers to avoid name clashes and ambiguities.
 #  include "sanitizer_common.h"
 #  include "sanitizer_internal_defs.h"
@@ -242,7 +253,7 @@ namespace __sanitizer {
   unsigned struct_fstab_sz = sizeof(struct fstab);
 #endif  // SANITIZER_GLIBC || SANITIZER_FREEBSD || SANITIZER_NETBSD ||
         // SANITIZER_APPLE
-#if !SANITIZER_ANDROID && !SANITIZER_HAIKU
+#  if !SANITIZER_ANDROID && !SANITIZER_HAIKU && !SANITIZER_QNX
   unsigned struct_statfs_sz = sizeof(struct statfs);
   unsigned struct_sockaddr_sz = sizeof(struct sockaddr);
 
@@ -264,7 +275,7 @@ namespace __sanitizer {
 #    endif
     return sizeof(ucontext_t);
   }
-#  endif  // !SANITIZER_ANDROID
+#  endif  // !SANITIZER_ANDROID && !SANITIZER_QNX
 
 #  if SANITIZER_LINUX
   unsigned struct_epoll_event_sz = sizeof(struct epoll_event);
@@ -355,7 +366,7 @@ namespace __sanitizer {
 #if !SANITIZER_APPLE && !SANITIZER_FREEBSD && !SANITIZER_HAIKU
   unsigned struct_utmp_sz = sizeof(struct utmp);
 #endif
-#if !SANITIZER_ANDROID
+#  if !SANITIZER_ANDROID && !SANITIZER_QNX
   unsigned struct_utmpx_sz = sizeof(struct utmpx);
 #endif
 
@@ -384,9 +395,9 @@ unsigned struct_ElfW_Phdr_sz = sizeof(Elf_Phdr);
   int glob_altdirfunc = GLOB_ALTDIRFUNC;
 #endif
 
-#  if !SANITIZER_ANDROID && !SANITIZER_HAIKU
+#  if !SANITIZER_ANDROID && !SANITIZER_HAIKU && !SANITIZER_QNX
   const int wordexp_wrde_dooffs = WRDE_DOOFFS;
-#  endif  // !SANITIZER_ANDROID && !SANITIZER_HAIKU
+#  endif  // !SANITIZER_ANDROID && !SANITIZER_HAIKU && !SANITIZER_QNX
 
 #  if SANITIZER_LINUX && !SANITIZER_ANDROID &&                               \
       (defined(__i386) || defined(__x86_64) || defined(__mips64) ||          \
@@ -563,7 +574,8 @@ unsigned struct_ElfW_Phdr_sz = sizeof(Elf_Phdr);
   unsigned struct_ppp_stats_sz = sizeof(struct ppp_stats);
 #  endif  // SANITIZER_GLIBC
 
-#  if !SANITIZER_ANDROID && !SANITIZER_APPLE && !SANITIZER_HAIKU
+#  if !SANITIZER_ANDROID && !SANITIZER_APPLE && !SANITIZER_HAIKU && \
+      !SANITIZER_QNX
   unsigned struct_sioc_sg_req_sz = sizeof(struct sioc_sg_req);
   unsigned struct_sioc_vif_req_sz = sizeof(struct sioc_vif_req);
 #endif
@@ -603,12 +615,14 @@ unsigned struct_ElfW_Phdr_sz = sizeof(Elf_Phdr);
   unsigned IOCTL_SIOCSIFNETMASK = SIOCSIFNETMASK;
   unsigned IOCTL_SIOCSPGRP = SIOCSPGRP;
 
-#  if !SANITIZER_HAIKU
+#  if !SANITIZER_HAIKU && !SANITIZER_QNX
   unsigned IOCTL_TIOCCONS = TIOCCONS;
   unsigned IOCTL_TIOCGETD = TIOCGETD;
+  unsigned IOCTL_TIOCSETD = TIOCSETD;
+#  endif
+#  if !SANITIZER_HAIKU
   unsigned IOCTL_TIOCNOTTY = TIOCNOTTY;
   unsigned IOCTL_TIOCPKT = TIOCPKT;
-  unsigned IOCTL_TIOCSETD = TIOCSETD;
   unsigned IOCTL_TIOCSTI = TIOCSTI;
 #  endif
 
@@ -1137,7 +1151,7 @@ COMPILER_CHECK(sizeof(__sanitizer_dirent) <= sizeof(dirent));
 CHECK_SIZE_AND_OFFSET(dirent, d_ino);
 #if SANITIZER_APPLE
 CHECK_SIZE_AND_OFFSET(dirent, d_seekoff);
-#  elif SANITIZER_AIX
+#  elif SANITIZER_AIX || SANITIZER_QNX
 CHECK_SIZE_AND_OFFSET(dirent, d_offset);
 #  elif SANITIZER_FREEBSD || SANITIZER_HAIKU
 // There is no 'd_off' field on FreeBSD.

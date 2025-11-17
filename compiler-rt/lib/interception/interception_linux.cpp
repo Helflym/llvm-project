@@ -69,7 +69,7 @@ void* LookupSymbolNextVersioned(const char* symbol, const char* version) {
 #endif  // !SANITIZER_WINDOWS
 
 #if SANITIZER_LINUX || SANITIZER_FREEBSD || SANITIZER_NETBSD || \
-    SANITIZER_SOLARIS || SANITIZER_HAIKU
+    SANITIZER_SOLARIS || SANITIZER_HAIKU || SANITIZER_QNX
 
 namespace __interception {
 
@@ -133,4 +133,4 @@ bool InterceptFunction(const char *name, const char *ver, uptr *ptr_to_real,
 }  // namespace __interception
 
 #endif  // SANITIZER_LINUX || SANITIZER_FREEBSD || SANITIZER_NETBSD ||
-        // SANITIZER_SOLARIS || SANITIZER_HAIKU
+        // SANITIZER_SOLARIS || SANITIZER_HAIKU || SANITIZE_QNX

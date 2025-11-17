@@ -27,10 +27,11 @@
 #include <signal.h>
 #include <sys/mman.h>
 
-#  if SANITIZER_FREEBSD || SANITIZER_AIX
+#  if SANITIZER_FREEBSD || SANITIZER_AIX || SANITIZER_QNX
 // The MAP_NORESERVE define has been removed in FreeBSD 11.x, and even before
 // that, it was never implemented.  So just define it to zero.
 // Similarly, AIX does not define MAP_NORESERVE.
+// MAP_NORESERVE support has been removed in QNX 8.0.
 #    undef MAP_NORESERVE
 #    define MAP_NORESERVE 0
 #  endif

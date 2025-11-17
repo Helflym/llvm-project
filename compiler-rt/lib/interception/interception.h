@@ -19,7 +19,7 @@
 
 #if !SANITIZER_LINUX && !SANITIZER_FREEBSD && !SANITIZER_APPLE &&    \
     !SANITIZER_NETBSD && !SANITIZER_WINDOWS && !SANITIZER_FUCHSIA && \
-    !SANITIZER_SOLARIS && !SANITIZER_HAIKU && !SANITIZER_AIX
+    !SANITIZER_SOLARIS && !SANITIZER_HAIKU && !SANITIZER_AIX && !SANITIZER_QNX
 #  error "Interception doesn't work on this operating system."
 #endif
 
@@ -178,7 +178,7 @@ struct interpose_substitution {
 #  define DECLARE_WRAPPER(ret_type, func, ...) \
     extern "C" ret_type func(__VA_ARGS__)      \
         __attribute__((alias("__interceptor_" #func), visibility("default")));
-#elif !SANITIZER_FUCHSIA  // LINUX, FREEBSD, NETBSD, SOLARIS
+#elif !SANITIZER_FUCHSIA  // LINUX, FREEBSD, NETBSD, SOLARIS, QNX
 #  define INTERCEPTOR_ATTRIBUTE __attribute__((visibility("default")))
 #  if ASM_INTERCEPTOR_TRAMPOLINE_SUPPORT
 // Weak aliases of weak aliases do not work, therefore we need to set up a
@@ -198,10 +198,11 @@ struct interpose_substitution {
 // support functions with the "naked" attribute with every architecture.
 #    define WRAP(x) ___interceptor_##x
 #    define TRAMPOLINE(x) __interceptor_trampoline_##x
-#    if SANITIZER_FREEBSD || SANITIZER_NETBSD
+#    if SANITIZER_FREEBSD || SANITIZER_NETBSD || SANITIZER_QNX
 // FreeBSD's dynamic linker (incompliantly) gives non-weak symbols higher
 // priority than weak ones so weak aliases won't work for indirect calls
 // in position-independent (-fPIC / -fPIE) mode.
+// TODO: QNX has a similar yet unknown issue (could be weak support).
 #      define __ASM_WEAK_WRAPPER(func) ".globl " #func "\n"
 #    else
 #      define __ASM_WEAK_WRAPPER(func) ".weak " #func "\n"
@@ -242,7 +243,7 @@ struct interpose_substitution {
 //
 #    define WRAP(x) __interceptor_##x
 #    define TRAMPOLINE(x) WRAP(x)
-#    if SANITIZER_FREEBSD || SANITIZER_NETBSD
+#    if SANITIZER_FREEBSD || SANITIZER_NETBSD || SANITIZER_QNX
 #      define __ATTRIBUTE_WEAK_WRAPPER
 #    else
 #      define __ATTRIBUTE_WEAK_WRAPPER __attribute__((weak))
@@ -394,7 +395,7 @@ inline void DoesNotSupportStaticLinking() {}
 #  define INTERCEPT_FUNCTION_VER(func, symver) INTERCEPT_FUNCTION_AIX(func)
 
 #elif SANITIZER_LINUX || SANITIZER_FREEBSD || SANITIZER_NETBSD || \
-    SANITIZER_SOLARIS || SANITIZER_HAIKU
+    SANITIZER_SOLARIS || SANITIZER_HAIKU || SANITIZER_QNX
 
 #  include "interception_linux.h"
 #  define INTERCEPT_FUNCTION(func) INTERCEPT_FUNCTION_LINUX_OR_FREEBSD(func)

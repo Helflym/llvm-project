@@ -17,7 +17,7 @@
 
 #if SANITIZER_LINUX || SANITIZER_FREEBSD || SANITIZER_NETBSD || \
     SANITIZER_APPLE || SANITIZER_SOLARIS || SANITIZER_HAIKU ||  \
-    SANITIZER_FUCHSIA || SANITIZER_AIX
+    SANITIZER_FUCHSIA || SANITIZER_AIX || SANITIZER_QNX
 
 #  include "sanitizer_aix.h"
 #  include "sanitizer_common.h"
@@ -26,6 +26,7 @@
 #  include "sanitizer_linux.h"
 #  include "sanitizer_mac.h"
 #  include "sanitizer_mutex.h"
+#  include "sanitizer_qnx.h"
 
 namespace __sanitizer {
 

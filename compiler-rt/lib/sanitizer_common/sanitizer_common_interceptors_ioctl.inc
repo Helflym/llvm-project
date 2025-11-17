@@ -60,14 +60,16 @@ static void ioctl_table_fill() {
   _(SIOCGIFCONF, CUSTOM, 0);
   _(SIOCGPGRP, WRITE, sizeof(int));
   _(SIOCSPGRP, READ, sizeof(int));
-#if !SANITIZER_SOLARIS && !SANITIZER_HAIKU
+#  if !SANITIZER_SOLARIS && !SANITIZER_HAIKU && !SANITIZER_QNX
   _(TIOCCONS, NONE, 0);
 #endif
-#if !SANITIZER_HAIKU
+#  if !SANITIZER_HAIKU && !SANITIZER_QNX
   _(TIOCGETD, WRITE, sizeof(int));
+  _(TIOCSETD, READ, sizeof(int));
+#  endif
+#  if !SANITIZER_HAIKU
   _(TIOCNOTTY, NONE, 0);
   _(TIOCPKT, READ, sizeof(int));
-  _(TIOCSETD, READ, sizeof(int));
   _(TIOCSTI, READ, sizeof(char));
 #endif
   _(TIOCEXCL, NONE, 0);

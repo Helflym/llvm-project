@@ -33,7 +33,9 @@ set(SANITIZER_SOURCES_NOTERMINATION
   sanitizer_procmaps_haiku.cpp
   sanitizer_procmaps_linux.cpp
   sanitizer_procmaps_mac.cpp
+  sanitizer_procmaps_qnx.cpp
   sanitizer_procmaps_solaris.cpp
+  sanitizer_qnx.cpp
   sanitizer_range.cpp
   sanitizer_solaris.cpp
   sanitizer_stoptheworld_fuchsia.cpp
@@ -187,6 +189,7 @@ set(SANITIZER_IMPL_HEADERS
   sanitizer_posix.h
   sanitizer_procmaps.h
   sanitizer_ptrauth.h
+  sanitizer_qnx.h
   sanitizer_quarantine.h
   sanitizer_range.h
   sanitizer_redefine_builtins.h
