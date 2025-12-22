@@ -306,18 +306,23 @@ const char *GetEnv(const char *name) {
 }
 
 uptr GetTlsSize() {
-  // TODO
+  // FIXME: is there any way to retrieve that information ?
   return 0;
 }
 
-void InitTlsSize() {
-  // TODO
-}
+void InitTlsSize() {}
 
 void GetThreadStackTopAndBottom(bool, uptr *stack_top, uptr *stack_bottom) {
-  // TODO
-  Printf("GetThreadStackTopAndBottom not implemented for QNX\n");
-  Die();
+  *stack_bottom = (uptr)__tls()->__stackaddr;
+  *stack_top = *stack_bottom + (uptr)__tls()->__stacksize;
+}
+
+void GetThreadStackAndTls(bool main, uptr *stk_begin, uptr *stk_end,
+                          uptr *tls_begin, uptr *tls_end) {
+  *stk_begin = (uptr)__tls()->__stackaddr;
+  *stk_end = *stk_begin + (uptr)__tls()->__stacksize;
+  *tls_begin = (uptr)__tls();
+  *tls_end = *tls_begin + GetTlsSize();
 }
 
 u64 MonotonicNanoTime() {
