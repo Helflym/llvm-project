@@ -347,6 +347,9 @@ INTERCEPTOR(int, pthread_create, void* thread, void* attr,
 // AIX pthread_t is unsigned int.
 #    if SANITIZER_AIX
       return result ? 0 : *(unsigned*)(thread);
+#    elif SANITIZER_QNX
+      // pthread_t is always 32bit, possibly different from uptr.
+      return result ? 0 : *(u32*)(thread);
 #    else
       return result ? 0 : *(uptr*)(thread);
 #    endif
