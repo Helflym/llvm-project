@@ -113,7 +113,7 @@ static void AfterFork(bool fork_child) {
 }
 
 void InstallAtForkHandler() {
-#  if SANITIZER_SOLARIS || SANITIZER_NETBSD || SANITIZER_APPLE
+#  if SANITIZER_SOLARIS || SANITIZER_NETBSD || SANITIZER_APPLE || SANITIZER_QNX
   return;  // FIXME: Implement FutexWait.
 #  endif
   pthread_atfork(

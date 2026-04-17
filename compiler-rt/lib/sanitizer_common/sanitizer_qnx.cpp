@@ -227,15 +227,19 @@ uptr internal_execve(const char *filename, char *const argv[],
   return _REAL(execve, filename, argv, envp);
 }
 
-void internal_join_thread(void *th) {
-  Printf("internal_join_thread not implemented for QNX\n");
-  Die();
+void internal_pthread_exit(void *ret) {
+  DEFINE__REAL(void, pthread_exit, void *ret);
+  return _REAL(pthread_exit, ret);
 }
 
+void internal_join_thread(void *th) { internal_pthread_join(th, nullptr); }
+
 void *internal_start_thread(void *(*func)(void *arg), void *arg) {
-  Printf("internal_start_thread not implemented for QNX\n");
-  Die();
-  return NULL;
+  // Start the thread with signals blocked, otherwise it can steal user signals.
+  ScopedBlockSignals block(nullptr);
+  void *th;
+  internal_pthread_create(&th, nullptr, func, arg);
+  return (void *)(*(pthread_t *)(&th));
 }
 
 // --------------- sanitizer_common.h

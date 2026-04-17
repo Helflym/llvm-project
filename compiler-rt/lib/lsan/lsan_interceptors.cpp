@@ -499,7 +499,12 @@ INTERCEPTOR(int, pthread_create, void *th, void *attr,
       result = REAL(pthread_create)(
           th, attr, detached ? ThreadStartFunc<true> : ThreadStartFunc<false>,
           (void *)this_tid);
+#  if SANITIZER_QNX
+      // pthread_t is always 32bit, possibly different from uptr.
+      return result ? 0 : (uptr)(*(u32 *)(th));
+#  else
       return result ? 0 : *(uptr *)(th);
+#  endif
     });
   }
   if (attr == &myattr)

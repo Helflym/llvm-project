@@ -982,6 +982,9 @@ inline uptr GetPthreadDestructorIterations() {
 #endif
 }
 
+#if SANITIZER_QNX
+void internal_pthread_exit(void *ret);
+#endif
 void *internal_start_thread(void *(*func)(void*), void *arg);
 void internal_join_thread(void *th);
 void MaybeStartBackgroudThread();
