@@ -20,6 +20,7 @@
 #  include <sys/neutrino.h>
 #  include <sys/procfs.h>
 
+#  include "sanitizer_mutex.h"
 #  include "sanitizer_stoptheworld.h"
 
 namespace __sanitizer {
@@ -109,18 +110,47 @@ void *StopThread(void *arg) {
   return nullptr;
 }
 
+// QNX's pthread_exit could, under unknown circonstances, perform malloc calls.
+// Those calls, being intercepted, would lead to a deadlock as the sanitizer's
+// allocator would be locked.
+// Therefore, instead of using pthread_create/pthread_join, perform the
+// synchronization between the StopThread and its caller through semaphores.
+//  - stopthread_run is controlling when StopThread must be launched
+//  - stopthread_join mimics pthread_join, the caller waits for StopThread to
+//  wake it up.
+void *run_thread = NULL;
+static Semaphore stopthread_run;
+static Semaphore stopthread_join;
+struct StopThreadArgs stop_thread_args = {};
+
 void *WrapperStopThread(void *arg) {
+  while (true) {
+    // Wait until a run is requested.
+    stopthread_run.Wait();
+    CHECK(stop_thread_args.callback);
+    StopThread(&stop_thread_args);
+
+    // Unlock the calling thread.
+    stopthread_join.Post();
+  }
+
   // pthread_exit could be intercepted resulting in a deadlock since the
   // objects holding thread's details are locked.
-  internal_pthread_exit(StopThread(arg));
   UNREACHABLE("Stoptheworld cannot call pthread_exit");
   return nullptr;
 }
 
 void StopTheWorld(StopTheWorldCallback callback, void *argument) {
-  struct StopThreadArgs arg = {callback, argument};
-  void *run_thread = internal_start_thread(WrapperStopThread, &arg);
-  internal_join_thread(run_thread);
+  stop_thread_args = {callback, argument};
+
+  // Create the thread if this is the first call to StopTheWorld.
+  if (!run_thread) {
+    run_thread = internal_start_thread(WrapperStopThread, NULL);
+  }
+
+  // Trigger a run of stopthread and wait for its completion.
+  stopthread_run.Post();
+  stopthread_join.Wait();
 }
 
 ThreadID SuspendedThreadsListQnx::GetThreadID(uptr index) const {
