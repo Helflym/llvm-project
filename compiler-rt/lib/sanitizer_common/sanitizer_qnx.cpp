@@ -26,6 +26,8 @@
 #  include <stdio.h>
 #  include <sys/link.h>
 #  include <sys/mman.h>
+#  include <sys/neutrino.h>
+#  include <sys/procfs.h>
 #  include <sys/stat.h>
 #  include <sys/wait.h>
 #  include <ucontext.h>
@@ -404,7 +406,24 @@ void SignalContext::DumpAllRegisters(void *context) {
   Die();
 }
 
-void CheckASLR() {}
+void CheckASLR() {
+  procfs_info pinfo;
+  int fd;
+
+  fd = open("/proc/self/ctl", (O_RDONLY | O_BINARY));
+  if (fd == -1) {
+    Printf("Failed to get /proc/self/ctl (errno %d).\n", errno);
+    Die();
+  }
+
+  // Abort when ASLR is enabled.
+  devctl(fd, DCMD_PROC_INFO, &pinfo, sizeof(pinfo), NULL);
+  if (pinfo.flags & _NTO_PF_ASLR) {
+    Printf("Sanitizers are not compatible with enabled ASLR.\n");
+    Printf("To disable ASLR: \"on -ad <program>\".\n");
+    Die();
+  }
+}
 
 // --------------- sanitizer_mutex.h
 
