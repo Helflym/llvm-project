@@ -15,7 +15,8 @@
 
 #include "sanitizer_common/sanitizer_platform.h"
 #if SANITIZER_FREEBSD || SANITIZER_FUCHSIA || SANITIZER_LINUX || \
-    SANITIZER_NETBSD || SANITIZER_SOLARIS || SANITIZER_HAIKU || SANITIZER_AIX
+    SANITIZER_NETBSD || SANITIZER_SOLARIS || SANITIZER_HAIKU ||  \
+    SANITIZER_AIX || SANITIZER_QNX
 
 #  include "asan_allocator.h"
 #  include "asan_interceptors.h"
@@ -292,4 +293,5 @@ void ReplaceSystemMalloc() {}
 #  endif  // SANITIZER_ANDROID
 
 #endif  // SANITIZER_FREEBSD || SANITIZER_FUCHSIA || SANITIZER_LINUX ||
-        // SANITIZER_NETBSD || SANITIZER_SOLARIS || SANITIZER_HAIKU
+        // SANITIZER_NETBSD || SANITIZER_SOLARIS || SANITIZER_HAIKU ||
+        // SANITIZER_QNX

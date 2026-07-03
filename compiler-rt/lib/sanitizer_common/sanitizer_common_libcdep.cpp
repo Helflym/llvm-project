@@ -155,7 +155,7 @@ uptr ReservedAddressRange::InitAligned(uptr size, uptr align,
   return start;
 }
 
-#if !SANITIZER_FUCHSIA
+#if !SANITIZER_FUCHSIA || !SANITIZER_QNX
 
 // Reserve memory range [beg, end].
 // We need to use inclusive range because end+1 may not be representable.
@@ -206,7 +206,7 @@ void ProtectGap(uptr addr, uptr size, uptr zero_base_shadow_start,
   Die();
 }
 
-#endif  // !SANITIZER_FUCHSIA
+#endif  // !SANITIZER_FUCHSIA || !SANITIZER_QNX
 
 #if !SANITIZER_WINDOWS && !SANITIZER_GO
 // Weak default implementation for when sanitizer_stackdepot is not linked in.

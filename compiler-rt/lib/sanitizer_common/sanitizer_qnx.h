@@ -15,6 +15,8 @@
 #include "sanitizer_platform.h"
 #if SANITIZER_QNX
 
+#  include "sanitizer_platform_limits_posix.h"
+
 namespace __sanitizer {
 
 struct ProcSelfMapsBuff {
@@ -29,6 +31,22 @@ struct MemoryMappingLayoutData {
 };
 
 void ReadProcMaps(ProcSelfMapsBuff *proc_maps);
+
+uptr internal_sigprocmask(int how, __sanitizer_sigset_t *set,
+                          __sanitizer_sigset_t *oldset);
+
+void SetSigProcMask(__sanitizer_sigset_t *set, __sanitizer_sigset_t *oldset);
+void BlockSignals(__sanitizer_sigset_t *oldset = nullptr);
+struct ScopedBlockSignals {
+  explicit ScopedBlockSignals(__sanitizer_sigset_t *copy);
+  ~ScopedBlockSignals();
+
+  ScopedBlockSignals &operator=(const ScopedBlockSignals &) = delete;
+  ScopedBlockSignals(const ScopedBlockSignals &) = delete;
+
+ private:
+  __sanitizer_sigset_t saved_;
+};
 
 }  // namespace __sanitizer
 

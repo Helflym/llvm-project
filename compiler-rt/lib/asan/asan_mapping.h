@@ -298,7 +298,12 @@ extern uptr kHighMemEnd, kMidMemBeg, kMidMemEnd;  // Initialized in __asan_init.
 
 // Define to 1 to enable dynamic allocation of the shadow memory instead of
 // relying on MAP_NORESERVE behavior.
-#  define ASAN_DYNAMIC_SHADOW_ALLOCATION 0
+#  if SANITIZER_QNX
+// MAP_NORESERVE is not available in QNX.
+#    define ASAN_DYNAMIC_SHADOW_ALLOCATION 1
+#  else
+#    define ASAN_DYNAMIC_SHADOW_ALLOCATION 0
+#  endif
 
 #  if ASAN_DYNAMIC_SHADOW_ALLOCATION
 // An array recording whenever a chunk has been allocated.

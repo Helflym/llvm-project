@@ -23,6 +23,7 @@ set(ASAN_SOURCES
   asan_poisoning.cpp
   asan_posix.cpp
   asan_premap_shadow.cpp
+  asan_qnx.cpp
   asan_report.cpp
   asan_rtl.cpp
   asan_shadow_setup.cpp

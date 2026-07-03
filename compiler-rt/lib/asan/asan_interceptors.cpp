@@ -299,7 +299,7 @@ static thread_return_t THREAD_CALLING_CONV asan_thread_start(void* arg) {
   t->ThreadStart(GetTid());
 
 #    if SANITIZER_FREEBSD || SANITIZER_LINUX || SANITIZER_NETBSD || \
-        SANITIZER_SOLARIS
+        SANITIZER_SOLARIS || SANITIZER_QNX
   __sanitizer_sigset_t sigset;
   t->GetStartData(sigset);
   SetSigProcMask(&sigset, nullptr);
@@ -327,7 +327,7 @@ INTERCEPTOR(int, pthread_create, void* thread, void* attr,
 
   __sanitizer_sigset_t sigset = {};
 #    if SANITIZER_FREEBSD || SANITIZER_LINUX || SANITIZER_NETBSD || \
-        SANITIZER_SOLARIS
+        SANITIZER_SOLARIS || SANITIZER_QNX
   ScopedBlockSignals block(&sigset);
 #    endif
 

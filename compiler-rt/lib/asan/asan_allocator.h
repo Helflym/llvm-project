@@ -194,6 +194,8 @@ typedef DefaultSizeClassMap SizeClassMap;
 
 #    if SANITIZER_APPLE
 const uptr kAllocatorSpace = 0x600000000000ULL;
+#    elif SANITIZER_QNX
+const uptr kAllocatorSpace = 0x3000000000ULL;
 #    else   // SANITIZER_APPLE
 const uptr kAllocatorSpace = ~(uptr)0;
 #    endif  // SANITIZER_APPLE
@@ -227,6 +229,9 @@ const uptr kAllocatorSize = 0x8000000000ULL;  // 500G
 typedef DefaultSizeClassMap SizeClassMap;
 #    elif SANITIZER_APPLE
 const uptr kAllocatorSize = 0x40000000000ULL;  // 4T.
+typedef DefaultSizeClassMap SizeClassMap;
+#    elif SANITIZER_QNX
+const uptr kAllocatorSize = 0x2000000000ULL;  // 128G
 typedef DefaultSizeClassMap SizeClassMap;
 #    else
 const uptr kAllocatorSize = 0x40000000000ULL;  // 4T.

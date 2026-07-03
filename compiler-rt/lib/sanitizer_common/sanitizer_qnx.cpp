@@ -386,29 +386,27 @@ void ListOfModules::init() {
 
 void ListOfModules::fallbackInit() { clear(); }
 
-SignalContext::WriteFlag SignalContext::GetWriteFlag() const {
-  Printf("SignalContext::GetWriteFlag not implemented for QNX\n");
-  Die();
-  return Unknown;
-}
+// FIXME
+SignalContext::WriteFlag SignalContext::GetWriteFlag() const { return Unknown; }
 
 void InitializePlatformEarly() {}
 void InitializePlatformCommonFlags(CommonFlags *cf) {}
 
 void SignalContext::InitPcSpBp() {
-  Printf("SignalContext::InitPcSpBp not implemented for QNX\n");
-  Die();
+  ucontext_t *ucontext = (ucontext_t *)context;
+  pc = GET_REGIP(&ucontext->uc_mcontext.cpu);
+  sp = GET_REGSP(&ucontext->uc_mcontext.cpu);
+  bp = ucontext->uc_mcontext.cpu.gpr[29];
 }
 
 bool SignalContext::IsTrueFaultingAddress() const {
-  Printf("SignalContext::IsTrueFaultingAddress not implemented for QNX\n");
-  Die();
-  return 0;
+  auto si = static_cast<const siginfo_t *>(siginfo);
+  // "Real" SIGSEGV codes (e.g., SEGV_MAPERR, SEGV_MAPERR) are non-zero.
+  return si->si_signo == SIGSEGV && si->si_code != 0;
 }
 
 void SignalContext::DumpAllRegisters(void *context) {
-  Printf("SignalContext::DumpAllRegisters not implemented for QNX\n");
-  Die();
+  // FIXME: Implement this.
 }
 
 void CheckASLR() {
@@ -430,6 +428,15 @@ void CheckASLR() {
   }
 }
 
+// FIXME implement on this platform.
+void GetMemoryProfile(fill_profile_f cb, uptr *stats) {}
+
+uptr GetUserVirtualAddress() {
+  return (1ULL << 39) - 1;  // 0x0000007fffffffffUL
+}
+
+uptr GetMaxUserVirtualAddress() { return GetUserVirtualAddress(); }
+
 // --------------- sanitizer_mutex.h
 
 void FutexWait(atomic_uint32_t *p, u32 cmp) {
@@ -438,6 +445,45 @@ void FutexWait(atomic_uint32_t *p, u32 cmp) {
 }
 
 void FutexWake(atomic_uint32_t *p, u32 count) {}
+
+// --------------- sanitizer_qnx.h
+
+uptr internal_sigprocmask(int how, __sanitizer_sigset_t *set,
+                          __sanitizer_sigset_t *oldset) {
+  DEFINE__REAL(int, pthread_sigmask, int how, __sanitizer_sigset_t *set,
+               __sanitizer_sigset_t *oldset);
+  return _REAL(pthread_sigmask, how, set, oldset);
+}
+
+void internal_sigfillset(__sanitizer_sigset_t *set) {
+  DEFINE__REAL(int, sigfillset, __sanitizer_sigset_t *set);
+  _REAL(sigfillset, set);
+}
+
+void internal_sigdelset(__sanitizer_sigset_t *set, int signum) {
+  DEFINE__REAL(int, sigdelset, __sanitizer_sigset_t *set, int signum);
+  _REAL(sigdelset, set, signum);
+}
+
+void SetSigProcMask(__sanitizer_sigset_t *set, __sanitizer_sigset_t *oldset) {
+  CHECK_EQ(0, internal_sigprocmask(SIG_SETMASK, set, oldset));
+}
+
+void BlockSignals(__sanitizer_sigset_t *oldset) {
+  __sanitizer_sigset_t set;
+  internal_sigfillset(&set);
+  // SIGSEGV is triggered when the shadow memory is access.
+  internal_sigdelset(&set, 11);
+  SetSigProcMask(&set, oldset);
+}
+
+ScopedBlockSignals::ScopedBlockSignals(__sanitizer_sigset_t *copy) {
+  BlockSignals(&saved_);
+  if (copy)
+    internal_memcpy(copy, &saved_, sizeof(saved_));
+}
+
+ScopedBlockSignals::~ScopedBlockSignals() { SetSigProcMask(&saved_, nullptr); }
 
 }  // namespace __sanitizer
 #endif
