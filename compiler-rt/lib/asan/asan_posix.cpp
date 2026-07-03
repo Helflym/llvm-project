@@ -32,6 +32,13 @@
 #  include "sanitizer_common/sanitizer_posix.h"
 #  include "sanitizer_common/sanitizer_procmaps.h"
 
+#  if SANITIZER_QNX
+#    include <dlfcn.h>
+#    include <sys/link.h>
+#  else
+#    include <link.h>
+#  endif
+
 namespace __asan {
 
 void AsanOnDeadlySignal(int signo, void *siginfo, void *context) {
@@ -200,6 +207,99 @@ void InstallAtExitCheckLeaks() {
         Atexit(__lsan::DoRecoverableLeakCheckVoid);
     }
   }
+}
+
+#  if ASAN_DYNAMIC_SHADOW_ALLOCATION
+#    if SANITIZER_QNX
+/* Required for some systems like QNX */
+typedef const struct dl_phdr_info *dl_phdr_info_ptr;
+#    else
+/* Default for glibc (Linux) and LSB-compliant systems that define the 'info'
+   argument as a non-const pointer */
+typedef struct dl_phdr_info *dl_phdr_info_ptr;
+#    endif
+static int AllocateShmImportedSymbol(dl_phdr_info_ptr info, size_t size,
+                                     void *data) {
+  VReport(2, "Allocate shadow memory of imported symbols for %s (at %p)\n",
+          info->dlpi_name, (void *)info->dlpi_addr);
+
+  // Address of .dynsym and .dynstr.
+  Elf64_Addr dynsym_addr = 0;
+  Elf64_Addr dynstr_addr = 0;
+
+  // Iterate over program headers to find the .dynamic section.
+  for (int i = 0; i < info->dlpi_phnum; i++) {
+    const Elf64_Phdr *phdr = &info->dlpi_phdr[i];
+    if (phdr->p_type != PT_DYNAMIC)
+      continue;
+
+    VReport(3, "  Found .dynamic section at: 0x%lx\n", phdr->p_vaddr);
+    Elf64_Dyn *dynamic = (Elf64_Dyn *)(info->dlpi_addr + phdr->p_vaddr);
+
+    // Iterate over the .dynamic array to find .dynsym and .dynstr_addr.
+    for (Elf64_Dyn *dyn = dynamic; dyn->d_tag != DT_NULL; dyn++) {
+      // It's not possible to know whether d_ptr above contains a relocated or
+      // the raw value. Therefore, assume that if it's lower than dlpi_addr then
+      // it hasn't been relocated and dlpi_addr must be added.
+      switch (dyn->d_tag) {
+        case DT_SYMTAB:
+          dynsym_addr = dyn->d_un.d_ptr;
+          dynsym_addr += dynsym_addr < info->dlpi_addr ? info->dlpi_addr : 0;
+          break;
+        case DT_STRTAB:
+          dynstr_addr = dyn->d_un.d_ptr;
+          dynstr_addr += dynstr_addr < info->dlpi_addr ? info->dlpi_addr : 0;
+          break;
+      }
+    }
+  }
+
+  // Return if not .dynsym or .dynstr are not present (unlikely).
+  if (!dynsym_addr || !dynstr_addr) {
+    VReport(2, "  .dynsym or .dynstr not found... Skipping\n");
+    return 0;
+  }
+
+  Elf64_Sym *symtab = (Elf64_Sym *)dynsym_addr;
+
+  // XXX: This assumes .dynsym is always followed by .dynstr.
+  for (Elf64_Sym *sym = symtab; (Elf64_Addr)sym < dynstr_addr; sym++) {
+    // Skip empty entries, non-global symbol and non-data symbol
+    if (!sym->st_name || !(ELF64_ST_BIND(sym->st_info) & STB_GLOBAL) ||
+        !(ELF64_ST_TYPE(sym->st_info) & STT_OBJECT))
+      continue;
+
+    char *symname = (char *)(dynstr_addr + sym->st_name);
+    VReport(3, "  Found imported global data symbol: %s\n", symname);
+
+    uptr symaddr = (uptr)dlsym(RTLD_NEXT, symname);
+    if (!symaddr) {
+      // If the lookup using RTLD_NEXT failed, the sanitizer runtime library is
+      // later in the library search order than the DSO that we are trying to
+      // get the symbol from.
+      symaddr = (uptr)dlsym(RTLD_DEFAULT, symname);
+    }
+
+    if (!symaddr) {
+      VReport(3, "  Cannot fetch imported symbol address... Skipping\n");
+    } else {
+      AllocShadow(MEM_TO_SHADOW(symaddr));
+    }
+  }
+
+  return 0;
+}
+#  endif
+
+void AsanLateInitPlatform() {
+#  if ASAN_DYNAMIC_SHADOW_ALLOCATION
+  // Symbol imported from libraries made without ASAN are not registered
+  // by __asan_report_globals and thus will likely have their shadow memory
+  // unallocated.
+  // Since GCC generated read access to this shadow memory, a pass must be
+  // made to ensure its has been allocated.
+  dl_iterate_phdr(AllocateShmImportedSymbol, NULL);
+#  endif
 }
 
 }  // namespace __asan

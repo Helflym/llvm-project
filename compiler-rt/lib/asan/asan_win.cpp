@@ -177,6 +177,7 @@ INTERCEPTOR_WINAPI(void, ExitThread, DWORD dwExitCode) {
 
 namespace __asan {
 
+void AsanLateInitPlatform() {}
 void InitializePlatformInterceptors() {
   __interception::SetErrorReportCallback(Report);
 

@@ -84,6 +84,7 @@ uptr FindDynamicShadowStart();
 void AsanCheckDynamicRTPrereqs();
 void AsanCheckIncompatibleRT();
 void TryReExecWithoutASLR();
+void AsanLateInitPlatform();
 
 // Unpoisons platform-specific stacks.
 // Returns true if all stacks have been unpoisoned.

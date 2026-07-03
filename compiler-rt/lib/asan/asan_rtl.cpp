@@ -592,6 +592,9 @@ static bool AsanInitInternal() {
     Symbolizer::LateInitialize();
   }
 
+  // Platform-specific initialization.
+  AsanLateInitPlatform();
+
   VReport(1, "AddressSanitizer Init done\n");
 
   WaitForDebugger(flags()->sleep_after_init, "after init");
