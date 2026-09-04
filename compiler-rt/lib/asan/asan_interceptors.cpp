@@ -333,6 +333,20 @@ INTERCEPTOR(int, pthread_create, void* thread, void* attr,
 
   AsanThread* t = AsanThread::Create(sigset, current_tid, &stack, detached);
 
+#    if SANITIZER_QNX
+  // QNX pthread_create allows NULL thread argument. Raise an error since
+  // ASAN algorithms expect one.
+  // Note that its allocation could be internal to ASAN, but it tends to
+  // be unstable. Since it's not a POSIX-compatible, the error makes sense
+  // anyway.
+  if (!thread) {
+    Report("ERROR: pthread_create with NULL tid argument unsupported\n");
+    GET_STACK_TRACE_THREAD;
+    stack.Print();
+    Die();
+  }
+#    endif
+
   int result;
   {
     // Ignore all allocations made by pthread_create: thread stack/TLS may be
