@@ -27,7 +27,7 @@ struct AddressSanitizerOptions {
   bool UseAfterScope = false;
   AsanDetectStackUseAfterReturnMode UseAfterReturn =
       AsanDetectStackUseAfterReturnMode::Runtime;
-  int InstrumentationWithCallsThreshold = 7000;
+  int InstrumentationWithCallsThreshold = 0;
   uint32_t MaxInlinePoisoningSize = 64;
   bool InsertVersionCheck = true;
 };
