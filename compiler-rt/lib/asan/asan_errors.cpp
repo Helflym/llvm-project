@@ -470,6 +470,9 @@ ErrorGeneric::ErrorGeneric(u32 tid, uptr pc_, uptr bp_, uptr sp_, uptr addr,
     bug_descr = "unknown-crash";
     if (AddrIsInMem(addr)) {
       u8 *shadow_addr = (u8 *)MemToShadow(addr);
+#if ASAN_DYNAMIC_SHADOW_ALLOCATION
+      AllocShadow((uptr)shadow_addr, (uptr)shadow_addr + 128);
+#endif
       // If we are accessing 16 bytes, look at the second shadow byte.
       if (*shadow_addr == 0 && access_size > ASAN_SHADOW_GRANULARITY)
         shadow_addr++;
@@ -634,6 +637,11 @@ static void PrintShadowMemoryForAddress(uptr addr) {
     // the user address is near the bottom, top, or shadow gap of the address
     // space.
     if (!AddrIsInShadow(row_shadow_addr)) continue;
+#if ASAN_DYNAMIC_SHADOW_ALLOCATION
+    // Early or late rows can belong to another shadow chunk.
+    // Allocate them if not yet done allowing calls PrintMemoryByte.
+    AllocShadow(row_shadow_addr);
+#endif
     const char *prefix = (i == 0) ? "=>" : "  ";
     PrintShadowBytes(&str, prefix, (u8 *)row_shadow_addr, (u8 *)shadow_addr,
                      n_bytes_per_row);

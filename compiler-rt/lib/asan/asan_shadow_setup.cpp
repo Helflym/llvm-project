@@ -21,6 +21,30 @@
 
 namespace __asan {
 
+#  if ASAN_DYNAMIC_SHADOW_ALLOCATION
+bool *shadow_chunk_allocated;
+uptr shadow_chunk_size;
+
+void InitializeShadowMemory() {
+  if (Verbosity())
+    PrintAddressSpaceLayout();
+
+  if (flags()->protect_shadow_gap) {
+    Report("Protect shadow gap unsupported. ABORTING.\n ");
+    Die();
+  }
+
+  // The goal is to keep both the shadow_chunk_allocated size and
+  // mmap allocations small enough to avoid performances impacts.
+#    define ASAN_DYNAMIC_MAX_CHUNKS_NUMBER 0x100000
+  shadow_chunk_size = 4 * GetPageSizeCached();
+  while ((kHighShadowEnd - kLowShadowBeg) / shadow_chunk_size >
+         ASAN_DYNAMIC_MAX_CHUNKS_NUMBER)
+    shadow_chunk_size *= 4;
+  shadow_chunk_allocated = reinterpret_cast<bool *>(MmapOrDie(
+      SHADOW_MEM_TO_CHUNK(kHighShadowEnd) * sizeof(bool), "Shadow Mapping"));
+}
+#  else
 static void ProtectGap(uptr addr, uptr size) {
   if (!flags()->protect_shadow_gap) {
     // The shadow gap is unprotected, so there is a chance that someone
@@ -44,13 +68,13 @@ static void ProtectGap(uptr addr, uptr size) {
 }
 
 static void MaybeReportLinuxPIEBug() {
-#if SANITIZER_LINUX && \
-    (defined(__x86_64__) || defined(__aarch64__) || SANITIZER_RISCV64)
+#    if SANITIZER_LINUX && \
+        (defined(__x86_64__) || defined(__aarch64__) || SANITIZER_RISCV64)
   Report("This might be related to ELF_ET_DYN_BASE change in Linux 4.12.\n");
   Report(
       "See https://github.com/google/sanitizers/issues/856 for possible "
       "workarounds.\n");
-#endif
+#    endif
 }
 
 void InitializeShadowMemory() {
@@ -76,13 +100,13 @@ void InitializeShadowMemory() {
     full_shadow_is_available =
         MemoryRangeIsAvailable(shadow_start, kHighShadowEnd);
 
-#if SANITIZER_LINUX && defined(__x86_64__) && defined(_LP64) && \
-    !ASAN_FIXED_MAPPING
+#    if SANITIZER_LINUX && defined(__x86_64__) && defined(_LP64) && \
+        !ASAN_FIXED_MAPPING
   if (!full_shadow_is_available) {
     kMidMemBeg = kLowMemEnd < 0x3000000000ULL ? 0x3000000000ULL : 0;
     kMidMemEnd = kLowMemEnd < 0x3000000000ULL ? 0x4fffffffffULL : 0;
   }
-#endif
+#    endif
 
   if (Verbosity()) PrintAddressSpaceLayout();
 
@@ -137,16 +161,16 @@ void InitializeShadowMemory() {
         GetMaxUserVirtualAddress()) {
       DCHECK_LE(kHighMemBeg, kHighMemEnd);
       ReserveShadowMemoryRange(kHighShadowBeg, kHighShadowEnd, "high shadow");
-#  if SANITIZER_AIX && SANITIZER_WORDSIZE == 64
+#    if SANITIZER_AIX && SANITIZER_WORDSIZE == 64
       // 64-bit AIX has no shadow gap to protect. Its three mid memory regions
       // have their own shadows, which are reserved here.
       ReserveShadowMemoryRange(kMidShadowBeg, kMidShadowEnd, "mid shadow");
       ReserveShadowMemoryRange(kMid2ShadowBeg, kMid2ShadowEnd, "mid2 shadow");
       ReserveShadowMemoryRange(kMid3ShadowBeg, kMid3ShadowEnd, "mid3 shadow");
-#  else
+#    else
       ProtectGap(kShadowGapBeg, kShadowGapEnd - kShadowGapBeg + 1);
       CHECK_EQ(kShadowGapEnd, kHighShadowBeg - 1);
-#  endif
+#    endif
     }
   } else if (kMidMemBeg &&
              MemoryRangeIsAvailable(shadow_start, kMidMemBeg - 1) &&
@@ -182,6 +206,7 @@ void InitializeShadowMemory() {
     Die();
   }
 }
+#  endif
 
 }  // namespace __asan
 

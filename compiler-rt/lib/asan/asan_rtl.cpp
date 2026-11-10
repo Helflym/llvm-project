@@ -186,8 +186,15 @@ __asan_report_assume_dereferenceable_noabort(uptr addr, uptr size) {
   }
 }
 
+#if ASAN_DYNAMIC_SHADOW_ALLOCATION
+#  define ASAN_MEMORY_ACCESS_CALLBACK_ALLOCATE_SHADOW(sp) AllocShadow(sp)
+#else
+#  define ASAN_MEMORY_ACCESS_CALLBACK_ALLOCATE_SHADOW(sp)
+#endif
+
 #define ASAN_MEMORY_ACCESS_CALLBACK_BODY(type, is_write, size, exp_arg, fatal) \
   uptr sp = MEM_TO_SHADOW(addr);                                               \
+  ASAN_MEMORY_ACCESS_CALLBACK_ALLOCATE_SHADOW(sp);                             \
   uptr s = size <= ASAN_SHADOW_GRANULARITY ? *reinterpret_cast<u8 *>(sp)       \
                                            : *reinterpret_cast<u16 *>(sp);     \
   if (UNLIKELY(s)) {                                                           \

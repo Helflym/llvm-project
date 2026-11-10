@@ -62,6 +62,10 @@ ALWAYS_INLINE void FastPoisonShadow(uptr aligned_beg, uptr aligned_size,
   uptr shadow_beg = MEM_TO_SHADOW(aligned_beg);
   uptr shadow_end =
       MEM_TO_SHADOW(aligned_beg + aligned_size - ASAN_SHADOW_GRANULARITY) + 1;
+
+#  if ASAN_DYNAMIC_SHADOW_ALLOCATION
+  AllocShadow(shadow_beg, shadow_end);
+#  endif
   // FIXME: Page states are different on Windows, so using the same interface
   // for mapping shadow and zeroing out pages doesn't "just work", so we should
   // probably provide higher-level interface for these operations.
@@ -96,6 +100,9 @@ ALWAYS_INLINE void FastPoisonShadowPartialRightRedzone(
   DCHECK(CanPoisonMemory());
   bool poison_partial = flags()->poison_partial;
   u8 *shadow = (u8*)MEM_TO_SHADOW(aligned_addr);
+#if ASAN_DYNAMIC_SHADOW_ALLOCATION
+  AllocShadow((uptr)shadow);
+#endif
   for (uptr i = 0; i < redzone_size; i += ASAN_SHADOW_GRANULARITY, shadow++) {
     if (i + ASAN_SHADOW_GRANULARITY <= size) {
       *shadow = 0;  // fully addressable

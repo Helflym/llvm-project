@@ -264,6 +264,11 @@ uptr __asan_region_is_poisoned(uptr beg, uptr size) {
     uptr shadow_beg = MemToShadow(aligned_b);
     uptr shadow_end = MemToShadow(aligned_e);
     CHECK_LT(shadow_beg, shadow_end);
+
+#if ASAN_DYNAMIC_SHADOW_ALLOCATION
+    // Allocate any missing chunk to allow mem_is_zero calls.
+    AllocShadow(shadow_beg, shadow_end);
+#endif
     if (__sanitizer::mem_is_zero((const char*)shadow_beg,
                                  shadow_end - shadow_beg))
       return 0;
@@ -331,6 +336,9 @@ void __asan_poison_cxx_array_cookie(uptr p) {
   if (SANITIZER_WORDSIZE != 64) return;
   if (!flags()->poison_array_cookie) return;
   uptr s = MEM_TO_SHADOW(p);
+#if ASAN_DYNAMIC_SHADOW_ALLOCATION
+  AllocShadow(s);
+#endif
   *reinterpret_cast<u8*>(s) = kAsanArrayCookieMagic;
 }
 
@@ -339,6 +347,9 @@ uptr __asan_load_cxx_array_cookie(uptr *p) {
   if (SANITIZER_WORDSIZE != 64) return *p;
   if (!flags()->poison_array_cookie) return *p;
   uptr s = MEM_TO_SHADOW(reinterpret_cast<uptr>(p));
+#if ASAN_DYNAMIC_SHADOW_ALLOCATION
+  AllocShadow(s);
+#endif
   u8 sval = *reinterpret_cast<u8*>(s);
   if (sval == kAsanArrayCookieMagic) return *p;
   // If sval is not kAsanArrayCookieMagic it can only be freed memory,

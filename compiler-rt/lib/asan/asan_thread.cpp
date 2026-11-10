@@ -352,6 +352,10 @@ bool AsanThread::GetStackFrameAccessByAddr(uptr addr,
   u8 *shadow_ptr = (u8 *)MemToShadow(aligned_addr);
   u8 *shadow_bottom = (u8 *)MemToShadow(bottom);
 
+#if ASAN_DYNAMIC_SHADOW_ALLOCATION
+  AllocShadow((uptr)shadow_bottom, (uptr)shadow_ptr);
+#endif
+
   while (shadow_ptr >= shadow_bottom &&
          *shadow_ptr != kAsanStackLeftRedzoneMagic) {
     shadow_ptr--;
@@ -392,6 +396,10 @@ uptr AsanThread::GetStackVariableShadowStart(uptr addr) {
   uptr aligned_addr = RoundDownTo(addr, SANITIZER_WORDSIZE / 8);  // align addr.
   u8 *shadow_ptr = (u8 *)MemToShadow(aligned_addr);
   u8 *shadow_bottom = (u8 *)MemToShadow(bottom);
+
+#if ASAN_DYNAMIC_SHADOW_ALLOCATION
+  AllocShadow((uptr)shadow_bottom, (uptr)shadow_ptr);
+#endif
 
   while (shadow_ptr >= shadow_bottom &&
          (*shadow_ptr != kAsanStackLeftRedzoneMagic &&

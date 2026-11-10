@@ -627,6 +627,10 @@ struct Allocator {
 
     m->SetAllocContext(t ? t->tid() : kMainTid, StackDepotPut(*stack));
 
+#if ASAN_DYNAMIC_SHADOW_ALLOCATION
+    AllocShadow(MEM_TO_SHADOW(alloc_beg), MEM_TO_SHADOW(alloc_end));
+#endif
+
     if (!from_primary || *(u8*)MEM_TO_SHADOW((uptr)allocated) == 0) {
       // The allocator provides an unpoisoned chunk. This is possible for the
       // secondary allocator, or if CanPoisonMemory() was false for some time,

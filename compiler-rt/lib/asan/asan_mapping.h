@@ -296,6 +296,24 @@ static uptr kMidMemEnd = 0x4fffffffffULL;
 extern uptr kHighMemEnd, kMidMemBeg, kMidMemEnd;  // Initialized in __asan_init.
 #  endif
 
+// Define to 1 to enable dynamic allocation of the shadow memory instead of
+// relying on MAP_NORESERVE behavior.
+#  define ASAN_DYNAMIC_SHADOW_ALLOCATION 0
+
+#  if ASAN_DYNAMIC_SHADOW_ALLOCATION
+// An array recording whenever a chunk has been allocated.
+extern bool *shadow_chunk_allocated;
+extern uptr shadow_chunk_size;
+
+// Return the chunk offset corresponding to the shadow pointer (shm).
+#    define SHADOW_MEM_TO_CHUNK(shm) \
+      ((((uptr)(shm)) - kLowShadowBeg) / shadow_chunk_size)
+
+#    define SHADOW_MEM_IS_ALLOCATED(shm) \
+      (shadow_chunk_allocated[SHADOW_MEM_TO_CHUNK(shm)])
+
+#  endif
+
 }  // namespace __asan
 
 #  if defined(__sparc__) && SANITIZER_WORDSIZE == 64
@@ -347,6 +365,30 @@ extern uptr kHighMemEnd, kMidMemBeg, kMidMemEnd;  // Initialized in __asan_init.
 #    define kShadowGap3End (kMidMemBeg ? kHighShadowBeg - 1 : 0)
 
 namespace __asan {
+
+#    if ASAN_DYNAMIC_SHADOW_ALLOCATION
+ALWAYS_INLINE void AllocShadow(uptr beg, uptr end) {
+  uptr chunk_beg = SHADOW_MEM_TO_CHUNK(beg);
+  uptr chunk_end = SHADOW_MEM_TO_CHUNK(end);
+  CHECK(chunk_beg <= chunk_end);
+
+  for (uptr i = chunk_beg; i <= chunk_end; i++) {
+    if (LIKELY(shadow_chunk_allocated[i]))
+      continue;
+
+    MmapFixedOrDie(kLowShadowBeg + i * shadow_chunk_size, shadow_chunk_size,
+                   "shadow maping");
+    shadow_chunk_allocated[i] = true;
+  }
+}
+
+ALWAYS_INLINE void AllocShadow(uptr shm) {
+  if (LIKELY(SHADOW_MEM_IS_ALLOCATED(shm)))
+    return;
+
+  AllocShadow(shm, shm);
+}
+#    endif
 
 static inline bool AddrIsInLowMem(uptr a) {
   PROFILE_ASAN_MAPPING();
@@ -437,6 +479,10 @@ static inline bool AddressIsPoisoned(uptr a) {
   PROFILE_ASAN_MAPPING();
   const uptr kAccessSize = 1;
   u8 *shadow_address = (u8 *)MEM_TO_SHADOW(a);
+#  if ASAN_DYNAMIC_SHADOW_ALLOCATION
+  if (!SHADOW_MEM_IS_ALLOCATED(shadow_address))
+    return false;
+#  endif
   s8 shadow_value = *shadow_address;
   if (shadow_value) {
     u8 last_accessed_byte =

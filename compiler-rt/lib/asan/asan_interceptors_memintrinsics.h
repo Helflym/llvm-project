@@ -33,6 +33,25 @@ static inline bool QuickCheckForUnpoisonedRegion(uptr beg, uptr size) {
   uptr last = beg + size - 1;
   uptr shadow_first = MEM_TO_SHADOW(beg);
   uptr shadow_last = MEM_TO_SHADOW(last);
+#if ASAN_DYNAMIC_SHADOW_ALLOCATION
+  // Check all chunks between shadow_first and shadow_last.
+  uptr chunk_first = SHADOW_MEM_TO_CHUNK(shadow_first);
+  uptr chunk_last = SHADOW_MEM_TO_CHUNK(shadow_last);
+  uptr chunks_allocated = 0;
+
+  for (uptr i = chunk_first; i <= chunk_last; i++) {
+    chunks_allocated += shadow_chunk_allocated[i];
+  }
+
+  // None have been allocated. The region cannot be poisoned.
+  if (!chunks_allocated)
+    return true;
+
+  // Some have, some haven't. We can't quickly decide.
+  if (chunks_allocated != chunk_last - chunk_first + 1)
+    return false;
+
+#endif
   uptr uptr_first = RoundDownTo(shadow_first, sizeof(uptr));
   uptr uptr_last = RoundDownTo(shadow_last, sizeof(uptr));
   if (LIKELY(((*reinterpret_cast<const uptr *>(uptr_first) |
